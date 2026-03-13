@@ -1,9 +1,9 @@
-import { useState, useEffect, use } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FaUser } from 'react-icons/fa';
 import { useSelector, useDispatch } from 'react-redux';
-import { register, reset } from '../features/auth/authSlice';
+import { register } from '../features/auth/authSlice';
 import Spinner from '../components/Spinner';
 
 function Register() {
@@ -19,32 +19,24 @@ function Register() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { user, isLoading, isError, isSuccess, message } = useSelector(
-    (state) => state.auth,
-  );
-
-  useEffect(() => {
-    if (isError) {
-      toast.error(message);
-    }
-
-    // Redirect when logged in
-    if (isSuccess || user) {
-      navigate('/');
-    }
-
-    dispatch(reset());
-  }, [isError, isSuccess, user, message, navigate, dispatch]);
+  const { isLoading } = useSelector((state) => state.auth);
 
   const onChange = (e) => {
-    setFormData((prevstate) => ({
-      ...prevstate,
+    setFormData((prevState) => ({
+      ...prevState,
       [e.target.name]: e.target.value,
     }));
   };
 
+  // NOTE: no need for useEffect here as we can catch the
+  // AsyncThunkAction rejection in our onSubmit or redirect them on the
+  // resolution
+  // Side effects shoulld go in event handlers where possible
+  // source: - https://beta.reactjs.org/learn/keeping-components-pure#where-you-can-cause-side-effects
+
   const onSubmit = (e) => {
     e.preventDefault();
+
     if (password !== password2) {
       toast.error('Passwords do not match');
     } else {
@@ -54,7 +46,16 @@ function Register() {
         password,
       };
 
-      dispatch(register(userData));
+      dispatch(register(userData))
+        .unwrap()
+        .then((user) => {
+          // NOTE: by unwrapping the AsyncThunkAction we can navigate the user after
+          // getting a good response from our API or catch the AsyncThunkAction
+          // rejection to show an error message
+          toast.success(`Registered new user - ${user.name}`);
+          navigate('/');
+        })
+        .catch(toast.error);
     }
   };
 
@@ -80,8 +81,8 @@ function Register() {
               id="name"
               name="name"
               value={name}
-              placeholder="Enter your name"
               onChange={onChange}
+              placeholder="Enter your name"
               required
             />
           </div>
@@ -92,9 +93,10 @@ function Register() {
               id="email"
               name="email"
               value={email}
-              placeholder="Enter your email"
               onChange={onChange}
+              placeholder="Enter your email"
               required
+              autoComplete="username"
             />
           </div>
           <div className="form-group">
@@ -104,9 +106,10 @@ function Register() {
               id="password"
               name="password"
               value={password}
-              placeholder="Enter password"
               onChange={onChange}
+              placeholder="Enter password"
               required
+              autoComplete="new-password"
             />
           </div>
           <div className="form-group">
@@ -116,9 +119,10 @@ function Register() {
               id="password2"
               name="password2"
               value={password2}
-              placeholder="Confirm password"
               onChange={onChange}
+              placeholder="Confirm password"
               required
+              autoComplete="new-password"
             />
           </div>
           <div className="form-group">
